@@ -2,9 +2,11 @@ from rest_framework import serializers
 
 from core.models import User
 from .models import (
+    Achievement,
     Assessment,
     Enrollment,
     Feedback,
+    Notification,
     Question,
     Remark,
     SchoolClass,
@@ -80,10 +82,14 @@ class AssessmentSerializer(serializers.ModelSerializer):
 
 class SubmissionSerializer(serializers.ModelSerializer):
     student_name = serializers.CharField(source="student.full_name", read_only=True)
+    assessment_title = serializers.CharField(source="assessment.title", read_only=True)
 
     class Meta:
         model = Submission
-        fields = ["id", "assessment", "student", "student_name", "answers", "score", "is_graded", "submitted_at"]
+        fields = [
+            "id", "assessment", "assessment_title", "student", "student_name",
+            "answers", "score", "is_graded", "submitted_at",
+        ]
         read_only_fields = ["id", "student", "score", "is_graded", "submitted_at"]
 
 
@@ -102,3 +108,30 @@ class RemarkSerializer(serializers.ModelSerializer):
         model = Remark
         fields = ["id", "teacher", "teacher_name", "student", "subject", "subject_name", "content", "created_at"]
         read_only_fields = ["id", "teacher", "created_at"]
+
+
+class NotificationSerializer(serializers.ModelSerializer):
+    is_read = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Notification
+        fields = ["id", "title", "body", "audience", "is_read", "created_at"]
+        read_only_fields = ["id", "created_at"]
+
+    def get_is_read(self, obj):
+        request = self.context.get("request")
+        if request and request.user.is_authenticated:
+            return obj.read_by.filter(id=request.user.id).exists()
+        return False
+
+
+class AchievementSerializer(serializers.ModelSerializer):
+    student_name = serializers.CharField(source="awarded_to.full_name", read_only=True)
+
+    class Meta:
+        model = Achievement
+        fields = [
+            "id", "title", "description", "icon", "awarded_to",
+            "student_name", "awarded_by", "created_at",
+        ]
+        read_only_fields = ["id", "awarded_by", "created_at"]

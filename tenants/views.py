@@ -39,13 +39,17 @@ class TenantDetailView(generics.RetrieveUpdateDestroyAPIView):
 class PlanListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsSuperAdmin]
     serializer_class = PlanSerializer
-    queryset = Plan.objects.all()
+
+    def get_queryset(self):
+        return Plan.objects.all()
 
 
 class PlanDetailView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [IsSuperAdmin]
     serializer_class = PlanSerializer
-    queryset = Plan.objects.all()
+
+    def get_queryset(self):
+        return Plan.objects.all()
 
 
 class SubscriptionListCreateView(generics.ListCreateAPIView):
@@ -73,13 +77,17 @@ class RoleListCreateView(generics.ListCreateAPIView):
 
     permission_classes = [IsSuperAdmin]
     serializer_class = RoleSerializer
-    queryset = Role.objects.all()
+
+    def get_queryset(self):
+        return Role.objects.all()
 
 
 class RoleDetailView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [IsSuperAdmin]
     serializer_class = RoleSerializer
-    queryset = Role.objects.all()
+
+    def get_queryset(self):
+        return Role.objects.all()
 
 
 class PlatformStatsView(APIView):

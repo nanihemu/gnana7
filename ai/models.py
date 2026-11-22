@@ -46,6 +46,11 @@ class VideoGenerationJob(TenantModel):
     requested_by = models.ForeignKey("core.User", on_delete=models.SET_NULL, null=True)
     script = models.TextField(blank=True)
     video_url = models.URLField(blank=True)
+    provider = models.CharField(
+        max_length=50, blank=True,
+        help_text="Which provider handled this job: heygen / fallback",
+    )
+    provider_meta = models.JSONField(default=dict, blank=True)
     error = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -56,3 +61,25 @@ class VideoGenerationJob(TenantModel):
 
     def __str__(self):
         return f"Video job for #{self.topic_id} · {self.status}"
+
+
+class TopicEmbedding(TenantModel):
+    """
+    Stored embedding for a Topic so the RAG chatbot can search school material
+    without a vector database. A JSONField plus pure-Python cosine similarity is
+    plenty for a school-sized corpus; swap for pgvector if it ever grows.
+    """
+
+    topic = models.OneToOneField(
+        "academics.Topic", on_delete=models.CASCADE, related_name="embedding"
+    )
+    content = models.TextField(blank=True, help_text="Text that was embedded")
+    content_hash = models.CharField(max_length=64, blank=True)
+    vector = models.JSONField(default=list, help_text="Embedding float array")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "ai_topic_embeddings"
+
+    def __str__(self):
+        return f"Embedding for #{self.topic_id}"

@@ -222,3 +222,53 @@ class Remark(TenantModel):
 
     def __str__(self):
         return f"{self.teacher} → {self.student}"
+
+
+class Notification(TenantModel):
+    """A school announcement. Admin posts; users see ones targeted at their role."""
+
+    class Audience(models.TextChoices):
+        ALL = "all", "Everyone"
+        ADMIN = "admin", "Admin"
+        TEACHERS = "teachers", "Teachers"
+        STUDENTS = "students", "Students"
+        PARENTS = "parents", "Parents"
+
+    title = models.CharField(max_length=200)
+    body = models.TextField()
+    audience = models.CharField(max_length=15, choices=Audience.choices, default=Audience.ALL)
+    created_by = models.ForeignKey(
+        "core.User", on_delete=models.CASCADE, related_name="notifications_created"
+    )
+    read_by = models.ManyToManyField(
+        "core.User", blank=True, related_name="notifications_read"
+    )
+
+    class Meta:
+        db_table = "notifications"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return self.title
+
+
+class Achievement(TenantModel):
+    """A badge a school awards a student (academic or co-curricular)."""
+
+    title = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    icon = models.CharField(max_length=50, blank=True, help_text="Emoji or icon key")
+    awarded_to = models.ForeignKey(
+        "core.User", on_delete=models.CASCADE, related_name="achievements"
+    )
+    awarded_by = models.ForeignKey(
+        "core.User", on_delete=models.CASCADE, related_name="achievements_awarded"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "achievements"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.title} → {self.awarded_to}"

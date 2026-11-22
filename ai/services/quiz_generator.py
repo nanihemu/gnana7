@@ -1,17 +1,17 @@
 """
 Quiz generation service.
 
-This module is provider-agnostic: it exposes a `generate_quiz_for_topic` function
-that the API view calls. When OPENAI_API_KEY is set it calls a real LLM; otherwise
-it falls back to a deterministic template generator so the whole system stays
-runnable and testable without credentials.
+Provider-agnostic: exposes `generate_quiz_for_topic`, which the API view calls.
+When an OpenAI-compatible provider is configured (OPENAI_API_KEY) it calls a real
+LLM; otherwise it falls back to deterministic templates so the whole system stays
+runnable and testable offline.
 """
 
-import json
-import os
 import random
 
 from academics.models import Question, Topic
+
+from .llm import chat_text, extract_json_array
 
 
 def _template_questions(topic: Topic, n: int = 5) -> list[dict]:
@@ -19,17 +19,19 @@ def _template_questions(topic: Topic, n: int = 5) -> list[dict]:
     base = topic.title or "this topic"
     questions = []
     for i in range(n):
+        options = [
+            f"Option A about {base}",
+            f"Option B about {base}",
+            f"Option C about {base}",
+            f"Option D about {base}",
+        ]
+        correct_index = i % 4
         questions.append(
             {
                 "text": f"Which of the following best relates to {base}? (question {i + 1})",
                 "q_type": "mcq",
-                "options": [
-                    f"Option A about {base}",
-                    f"Option B about {base}",
-                    f"Option C about {base}",
-                    f"Option D about {base}",
-                ],
-                "correct_index": i % 4,
+                "options": options,
+                "correct_index": correct_index,
                 "marks": 1,
             }
         )
@@ -37,26 +39,24 @@ def _template_questions(topic: Topic, n: int = 5) -> list[dict]:
 
 
 def _llm_questions(topic: Topic, n: int = 5) -> list[dict]:
-    """Call an LLM (OpenAI-compatible) to generate curriculum-aligned questions."""
-    import openai
-
-    client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    """Ask an LLM for curriculum-aligned MCQs about the topic."""
     prompt = (
-        "You are a quiz generator for students. Based on the topic below, generate "
-        f"{n} multiple-choice questions (MCQ). "
-        "Return ONLY valid JSON, an array of objects with keys: "
-        "text, options (array of 4 strings), correct_index (int 0-3), marks (int).\n\n"
-        f"Topic title: {topic.title}\nTopic description:\n{topic.description or 'N/A'}"
+        "You are a quiz generator for school students. Based on the topic below, "
+        f"generate exactly {n} multiple-choice questions (MCQ). "
+        "Each question is a JSON object with keys: "
+        '"text" (string), "options" (list of 4 strings), '
+        '"correct_index" (int 0-3), "marks" (int, usually 1). '
+        "Return ONLY a JSON array of question objects, no extra text.\n\n"
+        f"Topic title: {topic.title}\n"
+        f"Topic description:\n{topic.description or 'N/A'}"
     )
-    resp = client.chat.completions.create(
-        model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.7,
-    )
-    content = resp.choices[0].message.content
-    start = content.find("[")
-    end = content.rfind("]")
-    return json.loads(content[start : end + 1])
+    content = chat_text(prompt, temperature=0.7)
+    if not content:
+        raise RuntimeError("LLM returned no content")
+    data = extract_json_array(content)
+    if not isinstance(data, list):
+        raise ValueError("LLM did not return a JSON array")
+    return data
 
 
 def generate_quiz_for_topic(topic: Topic, n: int = 5) -> list[Question]:
@@ -66,12 +66,11 @@ def generate_quiz_for_topic(topic: Topic, n: int = 5) -> list[Question]:
         return list(Question.objects.filter(topic=topic))
 
     try:
-        if os.getenv("OPENAI_API_KEY"):
-            data = _llm_questions(topic, n)
-        else:
-            data = _template_questions(topic, n)
-    except Exception as exc:  # noqa: BLE001 - degrade gracefully on provider errors
-        # Fall back to templates so the pipeline never hard-fails.
+        data = _llm_questions(topic, n)
+    except Exception:  # noqa: BLE001 - degrade gracefully on provider errors
+        data = None
+
+    if not data:
         data = _template_questions(topic, n)
 
     created = []
@@ -81,7 +80,7 @@ def generate_quiz_for_topic(topic: Topic, n: int = 5) -> list[Question]:
             topic=topic,
             text=q["text"],
             q_type=q.get("q_type", "mcq"),
-            options=q.get("options", []),
+            options=q.get("options", [])[:4] or [""] * 4,
             correct_index=q.get("correct_index"),
             marks=q.get("marks", 1),
         )

@@ -43,19 +43,26 @@ class IsParent(BasePermission):
         )
 
 
-class HasRole(BasePermission):
-    """Role gate: pass the allowed role codes, e.g. HasRole(['admin', 'teacher'])."""
+def HasRole(roles):
+    """
+    Role gate. Returns a permission class allowing the given role codes, e.g.
+    ``HasRole(["admin", "teacher"])``. A factory (not a class) so it composes
+    cleanly with DRF, which instantiates each entry of ``permission_classes``.
+    """
 
-    def __init__(self, roles):
-        self.roles = roles
+    roles = frozenset(roles)
+    allowed_roles = roles
 
-    def has_permission(self, request, view):
-        user = request.user
-        return bool(user and user.is_authenticated and user.role in self.roles)
+    class _HasRole(BasePermission):
+        def has_permission(self, request, view):
+            user = request.user
+            return bool(user and user.is_authenticated and user.role in allowed_roles)
 
-    def has_object_permission(self, request, view, obj):
-        # Tenant-scoped objects must match the current user's tenant.
-        tenant = getattr(obj, "tenant", None)
-        if tenant is not None:
-            return tenant.id == getattr(request.user, "tenant_id", None)
-        return True
+        def has_object_permission(self, request, view, obj):
+            # Tenant-scoped objects must match the current user's tenant.
+            tenant = getattr(obj, "tenant", None)
+            if tenant is not None:
+                return tenant.id == getattr(request.user, "tenant_id", None)
+            return True
+
+    return _HasRole

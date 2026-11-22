@@ -111,6 +111,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # REST Framework
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
+        # Extends simplejwt's JWT auth to set the thread-local tenant after
+        # token validation — required for TenantManager row-level isolation.
+        "core.authentication.TenantJWTAuthentication",
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
     "DEFAULT_PERMISSION_CLASSES": (
