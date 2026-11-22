@@ -157,6 +157,10 @@ USE_TZ = True
 # Static files
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+# The built React app (frontend/dist) is served by Django under /static/ when
+# DEBUG is on, and as the SPA fallback for non-API routes. Vite emits assets
+# with base "/static/" when VITE_BASE=/static/ (see Dockerfile / vite.config.ts).
+STATICFILES_DIRS = [BASE_DIR / "frontend" / "dist"]
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"

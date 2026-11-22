@@ -111,14 +111,27 @@ npm run build      # tsc + vite production build
 - DRF list pagination is transparently unwrapped in the shared data hook.
 - `VITE_API_ROOT` overrides the API base URL in production (default `/api/v1`).
 
-## Run with Docker (PostgreSQL + Redis)
+## Run with Docker (whole app in one image)
 
 ```bash
+# requires a local .env (cp .env.example .env) for OPENAI_* / HEYGEN_* keys
 docker compose up --build
 ```
 
-Set Postgres connection via `DB_*` env vars in production (defaults in
-`docker-compose.yml`). Configure the real DB in `config/settings.py` (reads env).
+The single image (multi-stage `Dockerfile`) builds the React app and embeds it
+in the Django container, so `http://localhost:8000` serves **both** the web
+dashboard and the API. `migrate` + `seed_roles` + `seed_demo` run
+idempotently on every boot, so demo logins are ready immediately.
+
+- Web dashboard: `http://localhost:8000` (SPA served by Django, static under
+  `/static/`)
+- API/health: `http://localhost:8000/api/v1/health/`
+- Postgres + Redis come up via `docker compose` (`DB_*` env vars wired in
+  `docker-compose.yml`; configure the real DB in `config/settings.py`).
+
+During frontend development (live reload) keep using the Vite dev server from
+`npm run dev` in `frontend/` — the SPA fallback only kicks in when
+`frontend/dist` exists.
 
 ## Project structure
 

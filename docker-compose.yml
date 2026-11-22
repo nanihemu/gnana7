@@ -20,7 +20,9 @@ services:
 
   web:
     build: .
-    command: sh -c "python manage.py migrate && python manage.py seed_roles && python manage.py runserver 0.0.0.0:8000"
+    # Entrypoint (migrate + seed + runserver) lives in the Dockerfile CMD.
+    env_file:
+      - .env          # loads OPENAI_API_KEY / OPENAI_BASE_URL etc. (optional)
     environment:
       DB_ENGINE: django.db.backends.postgresql
       DB_NAME: sms
@@ -28,6 +30,7 @@ services:
       DB_PASSWORD: sms
       DB_HOST: db
       DB_PORT: "5432"
+      DJANGO_DEBUG: "True"
     ports:
       - "8000:8000"
     depends_on:

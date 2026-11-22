@@ -1,0 +1,29 @@
+# Python
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# Django
+db.sqlite3
+*.sqlite3
+media/
+staticfiles/
+
+# Env / secrets
+.env
+.env.local
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
+# Git / editor / OS
+.git/
+.gitignore
+.DS_Store
+.idea/
+.vscode/
+*.swp
