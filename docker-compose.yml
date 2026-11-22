@@ -1,0 +1,45 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: sms
+      POSTGRES_USER: sms
+      POSTGRES_PASSWORD: sms
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sms"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+
+  web:
+    build: .
+    command: sh -c "python manage.py migrate && python manage.py seed_roles && python manage.py runserver 0.0.0.0:8000"
+    environment:
+      DB_ENGINE: django.db.backends.postgresql
+      DB_NAME: sms
+      DB_USER: sms
+      DB_PASSWORD: sms
+      DB_HOST: db
+      DB_PORT: "5432"
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  worker:
+    build: .
+    command: sh -c "echo 'Celery worker placeholder — attach your task queue here' && sleep infinity"
+    depends_on:
+      - db
+      - redis
+
+volumes:
+  pgdata:
